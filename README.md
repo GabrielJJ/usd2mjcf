@@ -8,6 +8,9 @@ Join us, contribute, and help shape the future of AI and robotics. For questions
 ## 🌐Overview
 USD2MJCF is a powerful tool that converts Universal Scene Description (USD) assets into MuJoCo's MJCF format, enabling seamless transitions from collaborative 3D workflows to high-fidelity physics simulation.
 
+## 📚Documentation
+See [docs/README.md](docs/README.md) for a full USD-to-MJCF guide, including key concepts, collision development, a `bin_b04` walkthrough, and evaluation workflows.
+
 ## 🚀Features
  - Accurate material conversion from USD to MJCF format
  - Mesh segmentation by material ID for better asset organization
@@ -39,7 +42,7 @@ USD2MJCF is a powerful tool that converts Universal Scene Description (USD) asse
 
 ```bash
 cd $REPO_ROOT
-python3 test/usd2mjcf_test.py $USD_FILE_PATH [--output_path=$OUTPUT_DIRECTORY] [--generate_collision [--preprocess_resolution=20] [--resolution=2000]]
+python3 test/usd2mjcf_test.py $USD_FILE_PATH [--output_path=$OUTPUT_DIRECTORY] [--generate_collision [--preprocess_resolution=20] [--resolution=2000]] [--resolve_external_assets|--no-resolve_external_assets] [--asset_cache_dir=$CACHE_DIR] [--resolver_strict]
 ```
 
 ### 📋 Command Line Parameters
@@ -51,6 +54,9 @@ python3 test/usd2mjcf_test.py $USD_FILE_PATH [--output_path=$OUTPUT_DIRECTORY] [
 | `--generate_collision` | Flag | Boolean | False | Generate collision meshes using convex decomposition. USD collision bodies can be non-convex, but MJCF collision bodies must be convex. Since collision bodies are not exported during conversion, this option recreates them from visual meshes. |
 | `--preprocess_resolution` | Optional | Integer | 20 | Preprocessing voxelization resolution for convex decomposition |
 | `--resolution` | Optional | Integer | 2000 | Main voxelization resolution for convex decomposition |
+| `--resolve_external_assets` / `--no-resolve_external_assets` | Optional | Boolean | True | Resolve external USD refs (e.g., HTTPS payloads and `file:/isaac-sim/...`) into a local cache for plain Python runtimes |
+| `--asset_cache_dir` | Optional | String | `assets/_resolved_cache` | Directory used to cache mirrored external assets and patched input USD files |
+| `--resolver_strict` | Flag | Boolean | False | Fail conversion if any external reference cannot be resolved |
 
 ### 💡 Usage Examples
 
@@ -74,6 +80,16 @@ python3 test/usd2mjcf_test.py /path/to/robot.usd --generate_collision --preproce
 python3 test/usd2mjcf_test.py /path/to/robot.usd --output_path=/custom/output/dir --generate_collision
 ```
 
+**Convert with external dependency resolving (recommended for Omniverse-linked USDs):**
+```bash
+python3 test/usd2mjcf_test.py assets/bin_b04.usda --generate_collision --resolve_external_assets
+```
+
+**Use strict resolver mode and custom cache directory:**
+```bash
+python3 test/usd2mjcf_test.py assets/bin_b04.usda --resolve_external_assets --asset_cache_dir=/tmp/usd_cache --resolver_strict
+```
+
 ​If **`--output_path`** is not provided, the converter will automatically create an output folder in the same directory as the input USD file.​​
 
 ## 🗂️ Batch Processing
@@ -82,7 +98,7 @@ For processing multiple USD files at once, you can use the batch conversion scri
 
 ```bash
 cd $REPO_ROOT
-python3 test/batch_convert.py $INPUT_PATH [--generate_collision [--preprocess_resolution=20] [--resolution=2000]]
+python3 test/batch_convert.py $INPUT_PATH [--generate_collision [--preprocess_resolution=20] [--resolution=2000]] [--resolve_external_assets|--no-resolve_external_assets] [--asset_cache_dir=$CACHE_DIR] [--resolver_strict]
 ```
 
 ### 📋 Batch Processing Parameters
@@ -93,6 +109,9 @@ python3 test/batch_convert.py $INPUT_PATH [--generate_collision [--preprocess_re
 | `--generate_collision` | Flag | Boolean | False | Generate collision meshes using convex decomposition |
 | `--preprocess_resolution` | Optional | Integer | 20 | Preprocessing voxelization resolution for convex decomposition |
 | `--resolution` | Optional | Integer | 2000 | Main voxelization resolution for convex decomposition |
+| `--resolve_external_assets` / `--no-resolve_external_assets` | Optional | Boolean | True | Resolve external USD refs into local cache before conversion |
+| `--asset_cache_dir` | Optional | String | `assets/_resolved_cache` | Shared cache directory for mirrored external assets |
+| `--resolver_strict` | Flag | Boolean | False | Fail on unresolved external references |
 
 ### 💡 Batch Processing Examples
 
@@ -116,7 +135,19 @@ python3 test/batch_convert.py /path/to/usd/directory/ --generate_collision --pre
 python3 test/batch_convert.py /path/to/robot.usd --generate_collision
 ```
 
-**Note:** The batch converter will recursively process all **`.usd`** files in the specified directory and automatically skip temporary files (files containing **`.tmp.usd`**). Each file will be converted and saved to the same directory as the USD file.​​
+**Batch convert with resolver enabled (default):**
+```bash
+python3 test/batch_convert.py /path/to/usd/directory/ --generate_collision --resolve_external_assets
+```
+
+**Note:** The batch converter will recursively process all **`.usd`** and **`.usda`** files in the specified directory and automatically skip temporary files (files containing **`.tmp.usd`**). Each file will be converted and saved to the same directory as the USD file.​​
+
+### External Asset Resolver Notes
+
+- The resolver mirrors remote external dependencies (such as HTTPS payloads) into a local cache.
+- Cached files are reused across runs to avoid repeated downloads.
+- A patched temporary input USD is generated only when external refs need rewriting.
+- Resolver summary is printed during conversion (`downloaded`, `reused`, `rewritten`, `unresolved`).
 
 ## 🔖Version
 Current version: 1.0.0

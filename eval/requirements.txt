@@ -1,0 +1,3 @@
+mujoco>=3.0
+imageio>=2.30
+imageio-ffmpeg
